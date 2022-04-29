@@ -1,16 +1,20 @@
 require('dotenv').config();
-const express = require('express');
-const app = express();
+const fastify = require('fastify')({logger: true});
+const fastifyStatic = require('@fastify/static');
+const path = require('path');
+//const app = express();
 
 // Enable cross-origin resource sharing
 // so freeCodeCamp can remotely test the app
-const cors = require('cors');
-app.use(cors());
+//const cors = require('cors');
+//app.use(cors());
 
 // bodyparser needed to handle form input
+/*
 const bodyParser = require('body-parser');
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: true }));
+*/
 
 // Connect to MongoDB
 const { ExerciseDAO } = require('./dao.js');
@@ -22,36 +26,38 @@ function isInvalidString(str) {
 }
 
 // Declare location of static assets
-app.use(express.static('public'));
+fastify.register(fastifyStatic, {
+  root: path.join(__dirname, 'public')
+});
 
 // Get main page
-app.get('/', (req, res) => {
-  res.sendFile(__dirname + '/views/index.html')
+fastify.get('/', (request, reply) => {
+  return reply.sendFile(__dirname + '/views/index.html')
 });
 
 
 // Create new user.
 // Responds with JSON containing username and _id.
-app.post('/api/users', (req, res) => {
-  if (isInvalidString(req.body.username)) {
-    res.json({"error": "username missing"});
+fastify.post('/api/users', (request, reply) => {
+  if (isInvalidString(request.body.username)) {
+    reply.send({"error": "username missing"});
   }
   
-  edao.createUser(req.body.username)
+  edao.createUser(request.body.username)
     .then((result) => {
       console.log(`\nUser created:`);
       console.log(result);
-      res.json(result);
+      reply.send(result);
     });
 });
 
 
 // Get an array containing all user information.
-app.get('/api/users', (req, res) => {;
+fastify.get('/api/users', (request, reply) => {;
   edao.getAllUserInfo()
     .then((result) => {
       console.log('\nAll user info requested.');
-      res.json(result);
+      reply.send(result);
     });
 });
 
@@ -65,34 +71,34 @@ app.get('/api/users', (req, res) => {;
 // duration:    in minutes; must be Number
 // date:        if not specified, current.
 //              must be in datestring format from Date API
-app.post('/api/users/:_id/exercises', (req, res) => {
+fastify.post('/api/users/:_id/exercises', (request, reply) => {
   // Validate input
-  if (isInvalidString(req.params._id)) {
-    res.json({"error": "userid missing"});
+  if (isInvalidString(request.params._id)) {
+    reply.send({"error": "userid missing"});
     return;
   }
-  if (isInvalidString(req.body.description)) {
-    res.json({"error": "description missing"});
+  if (isInvalidString(request.body.description)) {
+    reply.send({"error": "description missing"});
     return;
   }
-  if (isInvalidString(req.body.duration)) {
-    res.json({"error": "duration missing"});
+  if (isInvalidString(request.body.duration)) {
+    reply.json({"error": "duration missing"});
     return;
   }
-  if (isInvalidString(req.body.date)) {
-    res.json({"error": "date missing"});
+  if (isInvalidString(request.body.date)) {
+    reply.json({"error": "date missing"});
     return;
   }
   
   edao.addExerciseToUser(
-    req.params._id,
-    req.body.description,
-    req.body.duration,
-    req.body.date
+    request.params._id,
+    request.body.description,
+    request.body.duration,
+    request.body.date
   ).then((result) => {
     console.log('\nExercise added:');
     console.log(result);
-    res.json(result);
+    reply.send(result);
   });
 });
 
@@ -109,32 +115,36 @@ app.post('/api/users/:_id/exercises', (req, res) => {
 // First, save these aggregate pipeline stages
 // outside of the app.get() function
 // since they will be used repeatedly.
-app.get('/api/users/:_id/logs', (req, res) => {
+fastify.get('/api/users/:_id/logs', (request, reply) => {
   // Validate input
-  if (isInvalidString(req.params._id)) {
-    res.json({"error": "userid missing"});
+  if (isInvalidString(request.params._id)) {
+    reply.send({"error": "userid missing"});
     return;
   }
   
   // The following 3 parameters are optional:
-  let from = isInvalidString(req.query.from) ? null : req.query.from;
-  let to = isInvalidString(req.query.to) ? null : req.query.to;
-  let limit = isInvalidString(req.query.limit) ? null : req.query.limit;
+  let from = isInvalidString(request.query.from) ? null : request.query.from;
+  let to = isInvalidString(request.query.to) ? null : request.query.to;
+  let limit = isInvalidString(request.query.limit) ? null : request.query.limit;
   
-  edao.getExerciseLog(req.params._id, from, to, limit)
+  edao.getExerciseLog(request.params._id, from, to, limit)
     .then((result) => {
       console.log('\nExercise log requested:');
-      console.log(req.query);
+      console.log(request.query);
       console.log(result);
-      res.json(result);
+      reply.send(result);
     });
 });
 
 
 // Start the app
 const port = ('PORT' in process.env) ? process.env.PORT : 3000;
-const server = app.listen(port, () => {
-  console.log(`The app is listening on port ${port}.`)
+fastify.listen(port, (err, address) => {
+  if (err) {
+    fastify.log.error(err);
+    process.exit(1);
+  }
+  console.log(`The app is listening on port ${address}.`)
 });
 
 
@@ -143,7 +153,9 @@ process.on('SIGINT', () => {
   // Close MongoDB connection
   edao.disconnect();
   // Shut down server
-  server.close(() => {
+  fastify.close().then(() => {
     console.log('Server process terminated.');
+  }, (err) => {
+    console.error(err);
   });
 });
