@@ -12,19 +12,9 @@ const bodyParser = require('body-parser');
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: true }));
 
-// Connect to MongoDB and get handler to collection
-import ExerciseDAO from './dao.js';
-const { MongoClient, ObjectId } = require('mongodb');
-const client = new MongoClient(process.env.DB_URI);
-let exerciseCollection;
-client.connect()
-  .then(() => {
-    ExerciseDAO.injectDB(client);
-  })
-  .catch((e) => {
-    console.error(e);
-    process.exit(1);
-  });
+// Connect to MongoDB
+const { ExerciseDAO } = require('./dao.js');
+let edao = new ExerciseDAO();
 
 
 // Declare location of static assets
@@ -40,15 +30,22 @@ app.get('/', (req, res) => {
 // Create new user.
 // Responds with JSON containing username and _id.
 app.post('/api/users', (req, res) => {
-  ExerciseDAO.createUser(req.body.username);
-  res.json();
+  edao.createUser(req.body.username)
+    .then((result) => {
+      console.log(`\nUser created:`);
+      console.log(result);
+      res.json(result);
+    });
 });
 
 
 // Get an array containing all user information.
 app.get('/api/users', (req, res) => {;
-  ExerciseDAO.getAllUserInfo();
-  res.json();
+  edao.getAllUserInfo()
+    .then((result) => {
+      console.log('\nAll user info requested.');
+      res.json(result);
+    });
 });
 
 
@@ -62,8 +59,34 @@ app.get('/api/users', (req, res) => {;
 // date:        if not specified, current.
 //              must be in datestring format from Date API
 app.post('/api/users/:_id/exercises', (req, res) => {
-  ExerciseDAO.addExerciseToUser(userId, desc, duration, date);
-  res.json();
+  // Validate input
+  if (!("_id" in req.params) || req.params._id === undefined) {
+    res.json({"error": "userid missing"});
+    return;
+  }
+  if (!("description" in req.body) || req.body.description === undefined) {
+    res.json({"error": "description missing"});
+    return;
+  }
+  if (!("duration" in req.body) || req.body.duration === undefined) {
+    res.json({"error": "duration missing"});
+    return;
+  }
+  if (!("date" in req.body) || req.body.date === undefined) {
+    res.json({"error": "date missing"});
+    return;
+  }
+  
+  const result = edao.addExerciseToUser(
+    req.params._id,
+    req.body.description,
+    req.body.duration,
+    req.body.date
+  ).then((result) => {
+    console.log('\nExercise added:');
+    console.log(result);
+    res.json(result);
+  });
 });
 
 
@@ -80,27 +103,38 @@ app.post('/api/users/:_id/exercises', (req, res) => {
 // outside of the app.get() function
 // since they will be used repeatedly.
 app.get('/api/users/:_id/logs', (req, res) => {
-  ExerciseDAO.getExerciseLog(userId, from, to, limit);
-  res.json();
+  // Validate input
+  if (!("_id" in req.params) || req.params._id === undefined) {
+    res.json({"error": "userid missing"});
+    return;
+  }
+  const from = ('from' in req.query) ? req.query.from : null;
+  const to = ('to' in req.query) ? req.query.to : null;
+  const limit = ('limit' in req.query) ? req.query.limit : null;
+  
+  edao.getExerciseLog(req.params._id, from, to, limit)
+    .then((result) => {
+      console.log('\nExercise log requested:');
+      console.log(req.query);
+      console.log(result);
+      res.json(result);
+    });
 });
 
 
 // Start the app
 const port = ('PORT' in process.env) ? process.env.PORT : 3000;
-const listener = app.listen(port, () => {
+const server = app.listen(port, () => {
   console.log(`The app is listening on port ${port}.`)
 });
 
 
-// Define shutdown behavior. Taken from:
-// https://stackoverflow.com/a/63419186
-function cleanup() {
-  // Close MongoDB
-  client.close();
-  // Exit with default success code, 0
-  //process.exit();
-  console.log('Shutting down.\n');
-}
-
-process.on('SIGINT', cleanup);
-process.on('SIGTERM', cleanup);
+// Also need to define response to 'SIGTERM'?
+process.on('SIGINT', () => {
+  // Close MongoDB connection
+  edao.disconnect();
+  // Shut down server
+  server.close(() => {
+    console.log('Server process terminated.');
+  });
+});
