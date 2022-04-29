@@ -16,10 +16,13 @@ app.use(bodyParser.urlencoded({ extended: true }));
 const { ExerciseDAO } = require('./dao.js');
 let edao = new ExerciseDAO();
 
+// Utility function for validating input
+function isInvalidString(str) {
+  return (!str || str.trim().length === 0);
+}
 
 // Declare location of static assets
 app.use(express.static('public'));
-
 
 // Get main page
 app.get('/', (req, res) => {
@@ -30,12 +33,11 @@ app.get('/', (req, res) => {
 // Create new user.
 // Responds with JSON containing username and _id.
 app.post('/api/users', (req, res) => {
-  let uname = req.body.username;
-  if (!uname || uname.trim().length === 0) {
+  if (isInvalidString(req.body.username)) {
     res.json({"error": "username missing"});
   }
   
-  edao.createUser(uname)
+  edao.createUser(req.body.username)
     .then((result) => {
       console.log(`\nUser created:`);
       console.log(result);
@@ -65,29 +67,28 @@ app.get('/api/users', (req, res) => {;
 //              must be in datestring format from Date API
 app.post('/api/users/:_id/exercises', (req, res) => {
   // Validate input
-  let id = req.params._id;
-  if (!id || id.trim().length === 0) {
+  if (isInvalidString(req.params._id)) {
     res.json({"error": "userid missing"});
     return;
   }
-  let description = req.body.description;
-  if (!description || description.trim().length === 0) {
+  if (isInvalidString(req.body.description)) {
     res.json({"error": "description missing"});
     return;
   }
-  let duration = req.body.duration;
-  if (!duration || duration.trim().length === 0) {
+  if (isInvalidString(req.body.duration)) {
     res.json({"error": "duration missing"});
     return;
   }
-  let date = req.body.date;
-  if (!date || date.trim().length === 0) {
+  if (isInvalidString(req.body.date)) {
     res.json({"error": "date missing"});
     return;
   }
   
-  const result = edao.addExerciseToUser(
-    id, description, duration, date
+  edao.addExerciseToUser(
+    req.params._id,
+    req.body.description,
+    req.body.duration,
+    req.body.date
   ).then((result) => {
     console.log('\nExercise added:');
     console.log(result);
@@ -110,24 +111,15 @@ app.post('/api/users/:_id/exercises', (req, res) => {
 // since they will be used repeatedly.
 app.get('/api/users/:_id/logs', (req, res) => {
   // Validate input
-  if (!req.params._id) {
+  if (isInvalidString(req.params._id)) {
     res.json({"error": "userid missing"});
     return;
   }
   
   // The following 3 parameters are optional:
-  let from = req.query.from;
-  if (!from || from.trim().length === 0) {
-    from = null;
-  }
-  let to = req.query.to;
-  if (!to || to.trim().length === 0) {
-    to = null;
-  }
-  let limit = req.query.limit;
-  if (!limit || limit.trim().length === 0) {
-    limit = null;
-  }
+  let from = isInvalidString(req.query.from) ? null : req.query.from;
+  let to = isInvalidString(req.query.to) ? null : req.query.to;
+  let limit = isInvalidString(req.query.limit) ? null : req.query.limit;
   
   edao.getExerciseLog(req.params._id, from, to, limit)
     .then((result) => {
