@@ -30,7 +30,12 @@ app.get('/', (req, res) => {
 // Create new user.
 // Responds with JSON containing username and _id.
 app.post('/api/users', (req, res) => {
-  edao.createUser(req.body.username)
+  let uname = req.body.username;
+  if (!uname || uname.trim().length === 0) {
+    res.json({"error": "username missing"});
+  }
+  
+  edao.createUser(uname)
     .then((result) => {
       console.log(`\nUser created:`);
       console.log(result);
@@ -60,28 +65,29 @@ app.get('/api/users', (req, res) => {;
 //              must be in datestring format from Date API
 app.post('/api/users/:_id/exercises', (req, res) => {
   // Validate input
-  if (!("_id" in req.params) || req.params._id === undefined) {
+  let id = req.params._id;
+  if (!id || id.trim().length === 0) {
     res.json({"error": "userid missing"});
     return;
   }
-  if (!("description" in req.body) || req.body.description === undefined) {
+  let description = req.body.description;
+  if (!description || description.trim().length === 0) {
     res.json({"error": "description missing"});
     return;
   }
-  if (!("duration" in req.body) || req.body.duration === undefined) {
+  let duration = req.body.duration;
+  if (!duration || duration.trim().length === 0) {
     res.json({"error": "duration missing"});
     return;
   }
-  if (!("date" in req.body) || req.body.date === undefined) {
+  let date = req.body.date;
+  if (!date || date.trim().length === 0) {
     res.json({"error": "date missing"});
     return;
   }
   
   const result = edao.addExerciseToUser(
-    req.params._id,
-    req.body.description,
-    req.body.duration,
-    req.body.date
+    id, description, duration, date
   ).then((result) => {
     console.log('\nExercise added:');
     console.log(result);
@@ -104,13 +110,24 @@ app.post('/api/users/:_id/exercises', (req, res) => {
 // since they will be used repeatedly.
 app.get('/api/users/:_id/logs', (req, res) => {
   // Validate input
-  if (!("_id" in req.params) || req.params._id === undefined) {
+  if (!req.params._id) {
     res.json({"error": "userid missing"});
     return;
   }
-  const from = ('from' in req.query) ? req.query.from : null;
-  const to = ('to' in req.query) ? req.query.to : null;
-  const limit = ('limit' in req.query) ? req.query.limit : null;
+  
+  // The following 3 parameters are optional:
+  let from = req.query.from;
+  if (!from || from.trim().length === 0) {
+    from = null;
+  }
+  let to = req.query.to;
+  if (!to || to.trim().length === 0) {
+    to = null;
+  }
+  let limit = req.query.limit;
+  if (!limit || limit.trim().length === 0) {
+    limit = null;
+  }
   
   edao.getExerciseLog(req.params._id, from, to, limit)
     .then((result) => {

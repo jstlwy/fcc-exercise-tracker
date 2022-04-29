@@ -12,6 +12,7 @@ const unwindAndSortStages = [
   }
 ];
 
+/*
 const getBackFieldsStage = {
   "$addFields": {
     "log.date": {
@@ -23,6 +24,7 @@ const getBackFieldsStage = {
     }
   }
 };
+*/
 
 const regroupStage = {
   "$group": {
@@ -200,7 +202,7 @@ class ExerciseDAO {
     // Validate the "from" date parameter
     let fromDate;
     let fromDateWasValid = false;
-    if (from !== null && from !== '') {
+    if (from !== null) {
       fromDate = new Date(from.replace(/-/g, '\/'));
       fromDateWasValid = !isNaN(fromDate);
     }
@@ -208,7 +210,7 @@ class ExerciseDAO {
     // Validate the "to" date parameter
     let toDate;
     let toDateWasValid = false;
-    if (to !== null && to !== '') {
+    if (to !== null) {
       toDate = new Date(to.replace(/-/g, '\/'));
       toDateWasValid = !isNaN(toDate);
     }
@@ -216,7 +218,7 @@ class ExerciseDAO {
     // Validate the "limit" parameter
     let limitNum;
     let limitWasValid = false;
-    if (limit !== null && limit !== '') {
+    if (limit !== null) {
       limitNum = parseInt(limit);
       limitWasValid = (!isNaN(limitNum) && limitNum > 0);
     }
@@ -304,4 +306,4 @@ class ExerciseDAO {
   }
 }
 
-module.exports = { ExerciseDAO }
+module.exports = { ExerciseDAO };
