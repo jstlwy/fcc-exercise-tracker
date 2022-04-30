@@ -42,6 +42,9 @@ app.post('/api/users', (req, res) => {
       console.log(`\nUser created:`);
       console.log(result);
       res.json(result);
+    })
+    .catch((error) => {
+      console.error(error);
     });
 });
 
@@ -52,6 +55,9 @@ app.get('/api/users', (req, res) => {;
     .then((result) => {
       console.log('\nAll user info requested.');
       res.json(result);
+    })
+    .catch((error) => {
+      console.error(error);
     });
 });
 
@@ -79,21 +85,24 @@ app.post('/api/users/:_id/exercises', (req, res) => {
     res.json({"error": "duration missing"});
     return;
   }
-  if (isInvalidString(req.body.date)) {
-    res.json({"error": "date missing"});
-    return;
-  }
+  // User is allowed to not specify a date.
+  // In that case, the current date will be used.
+  const date = isInvalidString(req.body.date) ? null : req.body.date;
   
   edao.addExerciseToUser(
     req.params._id,
     req.body.description,
     req.body.duration,
-    req.body.date
-  ).then((result) => {
-    console.log('\nExercise added:');
-    console.log(result);
-    res.json(result);
-  });
+    date
+  )
+    .then((result) => {
+      console.log('\nExercise added:');
+      console.log(result);
+      res.json(result);
+    })
+    .catch((error) => {
+      console.error(error);
+    });
 });
 
 
@@ -127,6 +136,9 @@ app.get('/api/users/:_id/logs', (req, res) => {
       console.log(req.query);
       console.log(result);
       res.json(result);
+    })
+    .catch((error) => {
+      console.error(error);
     });
 });
 

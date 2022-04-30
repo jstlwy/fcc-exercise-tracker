@@ -135,12 +135,17 @@ class ExerciseDAO {
       return {"error": "invalid duration"};
     }
   
-    // To prevent dates from being off by one day,
-    // replace "-" in date with "/".
-    // https://stackoverflow.com/a/63185483
-    date = new Date(date.replace(/-/g, '\/'));
-    if (isNaN(date)) {
-      return {"error": "invalid date"};
+    // Convert the date string to a Date object (if necessary)
+    if (date !== null) {
+      // To prevent dates from being off by one day,
+      // replace "-" in date with "/".
+      // https://stackoverflow.com/a/63185483
+      date = new Date(date.replace(/-/g, '\/'));
+      if (isNaN(date)) {
+        return {"error": "invalid date"};
+      }
+    } else {
+      date = new Date();
     }
     
     // Save all the above exercise data in an object.
